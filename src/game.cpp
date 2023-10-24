@@ -4,7 +4,7 @@
 #include <Windows.h>
 #include <cmath>
 #include <cstdlib>
-#include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -39,10 +39,14 @@ int height = 500;
 int camx;
 int camy;
 
+struct Asset {
+    SDL_Texture * texture;
+};
+
 class sprite {
 public:
-    SDL_Surface * sprite_suf;
-    SDL_Texture * sprite_tex;
+    std::shared_ptr<Asset> asset;
+
     SDL_Rect sprite_rec;
     int layer;
     std::string name;
@@ -65,6 +69,29 @@ public:
     SDL_Texture * text_tex;
     SDL_Rect text_rec;
 };
+
+struct Assets {
+    std::shared_ptr<Asset> cardBack;
+    std::shared_ptr<Asset> cardBoomBoomBad;
+
+    std::vector<std::shared_ptr<Asset>> cardFrontList;
+
+    std::shared_ptr<Asset> goldBar;
+    std::shared_ptr<Asset> goldCoin;
+    std::shared_ptr<Asset> silverBar;
+    std::shared_ptr<Asset> silverCoin;
+
+    std::shared_ptr<Asset> bottomUi;
+    std::shared_ptr<Asset> hand;
+    std::shared_ptr<Asset> heart;
+    std::shared_ptr<Asset> nextButton;
+    std::shared_ptr<Asset> retryButton;
+    std::shared_ptr<Asset> player;
+    std::shared_ptr<Asset> victory;
+    std::shared_ptr<Asset> defeat;
+};
+
+Assets gAssets;
 
 button button_class;
 sprite sprite_class_tem;
@@ -195,47 +222,31 @@ sprite create_spite(
     std::string tag,
     int l
 ) {
-    SDL_Surface * image = NULL;
-    if (sprite_r != "null") {
-        image = SDL_LoadBMP(sprite_r);
-    }
     SDL_Rect rect;
     rect.x = x;
     rect.y = y;
     rect.w = w;
     rect.h = h;
-    if (!image && sprite_r != "null") {
-        std::cout << "Failed to load image\n";
-        std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
-        std::terminate();
-    }
+
     sprite sprite_class;
-    sprite_class.layer      = l;
-    sprite_class.name       = name;
-    sprite_class.tag        = tag;
-    sprite_class.sprite_suf = image;
-    if (sprite_r != "null") {
-        sprite_class.sprite_tex = SDL_CreateTextureFromSurface(ren, image);
-    } else {
-        sprite_class.sprite_tex = NULL;
-    }
-    if (!sprite_class.sprite_tex && sprite_r != "null") {
-        std::cout << "Failed to make tux\n";
-        std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
-        std::terminate();
-    }
     sprite_class.sprite_rec = rect;
     sprite_class.layer      = l;
+    sprite_class.name       = name;
+    sprite_class.asset      = asset;
+
     return sprite_class;
 }
+
 void render_sprite(sprite sprite, SDL_Renderer * ren) {
-    sprite.sprite_rec.x = (sprite.sprite_rec.x - sprite.sprite_rec.w / 2);
-    sprite.sprite_rec.y = (sprite.sprite_rec.y - sprite.sprite_rec.h / 2);
-    if (sprite.tag != "ui") {
-        sprite.sprite_rec.x += camx;
-        sprite.sprite_rec.y += camy;
+    if (nullptr != sprite.asset) {
+        sprite.sprite_rec.x = (sprite.sprite_rec.x - sprite.sprite_rec.w / 2);
+        sprite.sprite_rec.y = (sprite.sprite_rec.y - sprite.sprite_rec.h / 2);
+        if (sprite.tag != "ui") {
+            sprite.sprite_rec.x += camx;
+            sprite.sprite_rec.y += camy;
+        }
+        SDL_RenderCopy(ren, sprite.asset->texture, NULL, &sprite.sprite_rec);
     }
-    SDL_RenderCopy(ren, sprite.sprite_tex, NULL, &sprite.sprite_rec);
 }
 void change_sprite_width_height(int w, int h, sprite * sprite) {
     sprite->sprite_rec.w = w;
@@ -245,25 +256,14 @@ void change_sprite_x_y(int x, int y, sprite * sprite) {
     sprite->sprite_rec.x = x;
     sprite->sprite_rec.y = y;
 }
-void change_sprite(const char * file, sprite * spriter, SDL_Renderer * ren) {
-    SDL_Surface * suf = SDL_LoadBMP(file);
-    SDL_DestroyTexture(spriter->sprite_tex);
-    spriter->sprite_tex = SDL_CreateTextureFromSurface(ren, suf);
-    if (!spriter->sprite_tex) {
-        std::cout << "Failed to make tux\n";
-        std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
-        std::terminate();
-    }
-    SDL_FreeSurface(suf);
+void change_sprite(std::shared_ptr<Asset> asset, sprite * spriter) {
+    spriter->asset = asset;
 }
 void destory_sprite(sprite * spriter) {
     spriter->sprite_rec = sprite_class_tem.sprite_rec;
     spriter->name       = "";
     spriter->tag        = "";
-    SDL_DestroyTexture(spriter->sprite_tex);
-    SDL_FreeSurface(spriter->sprite_suf);
-    spriter->sprite_suf = NULL;
-    spriter->sprite_tex = NULL;
+    spriter->asset      = nullptr;
 }
 void destory_text(text * spriter) {
     spriter->text_rec = text_class_tem.text_rec;
@@ -372,8 +372,7 @@ void make_cards(SDL_Renderer * ren, int cards_to_make) {
     for (int i = 0; i < cards_to_make; i++) {
         std::cout << "begin\n";
         cards_sprites.push_back(create_spite(
-            ren,
-            "art/card_back.bmp",
+            gAssets.cardBack,
             (250 + i * 104) - (624 * y),
             250 + y * 86,
             52,
@@ -411,8 +410,7 @@ void make_cards(SDL_Renderer * ren, int cards_to_make) {
 void make_hearts(SDL_Renderer * ren, int health) {
     for (int i = 0; i < health; i++) {
         hearts.push_back(create_spite(
-            ren,
-            "art/heart.bmp",
+            gAssets.heart,
             150 + i * (70 - (35 * floor(health / 11))),
             460,
             52 - (27 * floor(health / 11)),
@@ -429,23 +427,24 @@ void load_level_(SDL_Renderer * ren, TTF_Font * Sans) {
     make_hearts(ren, health);
     // load ui
     spritesnc.push_back(
-        create_spite(ren, "art/bottem_ui.bmp", 500, 400, 1000, 200, "bottem_tool_bar", "ui", 2)
+        create_spite(gAssets.bottomUi, 500, 400, 1000, 200, "bottem_tool_bar", "ui", 2)
     );
     // dev tools
-    // spritesnc.push_back(create_spite(ren,"art/heart.bmp", 150, 90, 50, 60, "damge_button",
-    // "ui", 2)); create_button(150,90,25,30, "ui");
-    // spritesnc.push_back(create_spite(ren,"art/heart.bmp", 250, 90, 50, 60, "heal_button",
-    // "ui", 2)); create_button(250,90,25,30 , "ui");
-    // spritesnc.push_back(create_spite(ren,"art/hand.bmp", 350, 90, 50, 60, "win_button", "ui",
-    // 2)); create_button(350,90,25,30, "ui");
-    // spritesnc.push_back(create_spite(ren,"art/hand.bmp", 450, 90, 50, 60, "lose_button",
-    // "ui", 2)); create_button(450,90,25,30, "ui");
-    random_card = create_spite(ren, "art/card_back.bmp", 75, 225, 100, 150, "rand_card", "ui", 2);
-    win_lose_ui = create_spite(ren, "null", NULL, NULL, NULL, NULL, "", "", 1);
+    // spritesnc.push_back(create_spite(gAssets.heart, 150, 90, 50, 60,
+    // "damge_button", 2)); create_button(150,90,25,30, "ui");
+    // spritesnc.push_back(create_spite(gAssets.heart, 250, 90, 50, 60,
+    // "heal_button", 2)); create_button(250,90,25,30 , "ui");
+    // spritesnc.push_back(create_spite(gAssets.hand, 350, 90, 50, 60,
+    // "win_button", 2)); create_button(350,90,25,30, "ui");
+    // spritesnc.push_back(create_spite(gAssets.hand, 450, 90, 50, 60,
+    // "lose_button", 2));
+    // create_button(450,90,25,30, "ui");
+    random_card = create_spite(gAssets.cardBack, 75, 225, 100, 150, "rand_card", "ui", 2);
+    // FIXME: find a better way to disable victory/defeat ui.
+    win_lose_ui = create_spite(nullptr, 0, 0, 0, 0, "", "", 1);
     // player and hand
     player = create_spite(
-        ren,
-        "art/player.bmp",
+        gAssets.player,
         cards_sprites[0].sprite_rec.x,
         cards_sprites[0].sprite_rec.y,
         50,
@@ -454,7 +453,7 @@ void load_level_(SDL_Renderer * ren, TTF_Font * Sans) {
         "player",
         2
     );
-    hand = create_spite(ren, "art/hand.bmp", 0, 0, 50, 60, "player_hand", "ui", 1);
+    hand = create_spite(gAssets.hand, 0, 0, 50, 60, "player_hand", "ui", 1);
     texts.push_back(create_text(
         ren,
         (std::to_string(health_max) + "/" + std::to_string(health)).c_str(),
@@ -467,11 +466,14 @@ void load_level_(SDL_Renderer * ren, TTF_Font * Sans) {
     // Recache
     rest_orders();
 }
-std::string get_sprite_of_item(std::string str) {
-    for (int i = 0; i < size(items); i++) {
-        if (items[i][0] == str) {
-            return items[i][1];
-        }
+std::shared_ptr<Asset> get_sprite_of_item(std::string str) {
+    if ("gold_bar" == str) {
+        return gAssets.goldBar;
+    } else if ("gold_coin" == str) {
+        return gAssets.goldCoin;
+    } else {
+        // Always return a default value.
+        return gAssets.silverCoin;
     }
 }
 void tick_hand() {
@@ -481,42 +483,27 @@ void tick_hand() {
     std::cout << "moved_mouse\n";
 }
 void erase_level() {
-    for (int i = 0; i < size(hearts); i++) {
-        destory_sprite(&hearts[i]);
-    }
-    for (int i = 0; i < size(cards_sprites); i++) {
-        destory_sprite(&cards_sprites[i]);
-    }
-    for (int i = 0; i < size(spritesnc); i++) {
-        destory_sprite(&spritesnc[i]);
-    }
-    for (int i = 0; i < size(texts); i++) {
-        destory_text(&texts[i]);
-    }
     hearts.clear();
     cards_sprites.clear();
     spritesnc.clear();
     texts.clear();
-    destory_sprite(&player);
-    destory_sprite(&random_card);
     buttons.clear();
     rest_orders();
 }
 void load_victory_ui(SDL_Renderer * ren, TTF_Font * Sans) {
     spritesnc.push_back(
-        create_spite(ren, "art/retry_button.bmp", 500, 400, 100, 80, "retry_button", "ui", 2)
+        create_spite(gAssets.retryButton, 500, 400, 100, 80, "retry_button", "ui", 2)
     );
     create_button(500, 400, 50, 40, "ui");
     if (win_lose_ui.name == "victory_sprite") {
         spritesnc.push_back(
-            create_spite(ren, "art/next_button.bmp", 650, 400, 100, 80, "next_button", "ui", 2)
+            create_spite(gAssets.nextButton, 650, 400, 100, 80, "next_button", "ui", 2)
         );
         create_button(650, 400, 50, 40, "ui");
         texts.push_back(create_text(ren, "treasure:", 12, { 0, 0, 0 }, Sans, 150, 500));
         for (int i = 0; i < size(collected_items); i++) {
             spritesnc.push_back(create_spite(
-                ren,
-                get_sprite_of_item(collected_items[i]).c_str(),
+                get_sprite_of_item(collected_items[i]),
                 80,
                 500,
                 50,
@@ -617,17 +604,15 @@ void render_ui(SDL_Renderer * ren) {
 void load_defeat_victory_ui(SDL_Renderer * ren, TTF_Font * Sans) {
     if (won == 1) {
         destory_sprite(&win_lose_ui);
-        win_lose_ui =
-            create_spite(ren, "art/victory.bmp", 500, 500, 400, 150, "victory_sprite", "ui", 1);
-        load_level = false;
-        won        = -1;
+        win_lose_ui = create_spite(gAssets.victory, 500, 500, 400, 150, "victory_sprite", "ui", 1);
+        load_level  = false;
+        won         = -1;
     }
     if (won == -2) {
         destory_sprite(&win_lose_ui);
-        win_lose_ui =
-            create_spite(ren, "art/defeat.bmp", 500, 500, 400, 150, "defeat_sprite", "ui", 1);
-        load_level = false;
-        won        = -1;
+        win_lose_ui = create_spite(gAssets.defeat, 500, 500, 400, 150, "defeat_sprite", "ui", 1);
+        load_level  = false;
+        won         = -1;
     }
     if (win_lose_ui.sprite_rec.y > 100) {
         win_lose_ui.sprite_rec.y -= round((abs(win_lose_ui.sprite_rec.y - 100) / 10) + 0.5);
@@ -645,7 +630,7 @@ void load_defeat_victory_ui(SDL_Renderer * ren, TTF_Font * Sans) {
         }
     }
 }
-void tick_cards(SDL_Renderer * ren) {
+void tick_cards() {
     for (int i = 0; i < size(cards_sprites); i++) {
         if (cards_sprites[i].tag == "destoryed_card") {
             if (cards_sprites_des_frames[i] > 20) {
@@ -665,11 +650,11 @@ void tick_cards(SDL_Renderer * ren) {
             } else {
                 if (cards_sprites_des_frames[i] != 0) {
                     if (card_sprites_indexs[i] == 1 || card_sprites_indexs[i] == 0) {
-                        change_sprite("art/card_boom_boom_bad.bmp", &cards_sprites[i], ren);
+                        change_sprite(gAssets.cardBoomBoomBad, &cards_sprites[i]);
                         change_sprite_width_height(104, 164, &cards_sprites[i]);
                         shake_frame = 10;
                     } else {
-                        change_sprite("art/card_boom_boom.bmp", &cards_sprites[i], ren);
+                        change_sprite(gAssets.cardBoomBoomBad, &cards_sprites[i]);
                         change_sprite_width_height(104, 164, &cards_sprites[i]);
                         shake_frame = 10;
                     }
@@ -703,14 +688,10 @@ void tick_cards(SDL_Renderer * ren) {
                 && cards_sprites[i].sprite_rec.y == player.sprite_rec.y
             ))
         {
-            change_sprite(
-                ("art/card_front" + std::to_string(card_sprites_indexs[i]) + ".bmp").c_str(),
-                &cards_sprites[i],
-                ren
-            );
+            change_sprite(gAssets.cardFrontList[card_sprites_indexs[i]], &cards_sprites[i]);
         } else {
             if (cards_sprites[i].tag == "card") {
-                change_sprite("art/card_back.bmp", &cards_sprites[i], ren);
+                change_sprite(gAssets.cardBack, &cards_sprites[i]);
             }
         }
         if (random_card_index != -1 && moved_this_frame
@@ -728,20 +709,12 @@ void tick_cards(SDL_Renderer * ren) {
         {
             if (card_sprites_indexs[i] == 0) {
                 cards_sprites[i].tag = "destoryed_card";
-                change_sprite(
-                    ("art/card_front" + std::to_string(card_sprites_indexs[i]) + ".bmp").c_str(),
-                    &cards_sprites[i],
-                    ren
-                );
+                change_sprite(gAssets.cardFrontList[card_sprites_indexs[i]], &cards_sprites[i]);
                 health -= 3;
             }
             if (card_sprites_indexs[i] == 1) {
                 cards_sprites[i].tag = "destoryed_card";
-                change_sprite(
-                    ("art/card_front" + std::to_string(card_sprites_indexs[i]) + ".bmp").c_str(),
-                    &cards_sprites[i],
-                    ren
-                );
+                change_sprite(gAssets.cardFrontList[card_sprites_indexs[i]], &cards_sprites[i]);
                 health -= 5;
             }
         }
@@ -751,11 +724,7 @@ void tick_cards(SDL_Renderer * ren) {
             && cards_sprites[i].tag == "card")
         {
             cards_sprites[i].tag = "destoryed_card";
-            change_sprite(
-                ("art/card_front" + std::to_string(card_sprites_indexs[i]) + ".bmp").c_str(),
-                &cards_sprites[i],
-                ren
-            );
+            change_sprite(gAssets.cardFrontList[card_sprites_indexs[i]], &cards_sprites[i]);
             cards_left -= 1;
         } else {
         }
@@ -807,15 +776,68 @@ void handle_card_after_move(SDL_Renderer * ren) {
 
             random_card_index = r;
             if (random_card.name == "rand_card") {
-                change_sprite(
-                    ("art/card_front" + std::to_string(r) + ".bmp").c_str(),
-                    &random_card,
-                    ren
-                );
+                change_sprite(gAssets.cardFrontList[r], &random_card);
             }
         }
     }
 }
+
+std::shared_ptr<Asset> load_asset(const char * file, SDL_Renderer * ren) {
+    std::shared_ptr<Asset> asset = std::make_shared<Asset>();
+
+    SDL_Surface * suf = SDL_LoadBMP(file);
+
+    if (!suf) {
+        std::cout << "Failed to load image: " << file << "\n";
+        std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
+        std::terminate();
+    }
+
+    asset->texture = SDL_CreateTextureFromSurface(ren, suf);
+
+    if (!asset->texture) {
+        std::cout << "Failed to make texture\n";
+        std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
+        std::terminate();
+    }
+    SDL_FreeSurface(suf);
+
+    return asset;
+}
+
+void load_assets(SDL_Renderer * ren) {
+    gAssets.cardBack        = load_asset("art/card_back.bmp", ren);
+    gAssets.cardBoomBoomBad = load_asset("art/card_boom_boom.bmp", ren);
+
+    gAssets.cardFrontList.push_back(load_asset("art/card_front0.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front1.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front2.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front3.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front4.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front5.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front6.bmp", ren));
+    gAssets.cardFrontList.push_back(load_asset("art/card_front7.bmp", ren));
+
+    gAssets.goldBar  = load_asset("art/gold_bar.bmp", ren);
+    gAssets.goldCoin = load_asset("art/gold_coin.bmp", ren);
+
+    gAssets.silverBar  = load_asset("art/sliver_bar.bmp", ren);
+    gAssets.silverCoin = load_asset("art/sliver_coin.bmp", ren);
+
+    gAssets.bottomUi = load_asset("art/bottem_ui.bmp", ren);
+
+    gAssets.hand  = load_asset("art/hand.bmp", ren);
+    gAssets.heart = load_asset("art/heart.bmp", ren);
+
+    gAssets.nextButton  = load_asset("art/next_button.bmp", ren);
+    gAssets.retryButton = load_asset("art/retry_button.bmp", ren);
+
+    gAssets.player = load_asset("art/player.bmp", ren);
+
+    gAssets.defeat  = load_asset("art/defeat.bmp", ren);
+    gAssets.victory = load_asset("art/victory.bmp", ren);
+}
+
 int main(int argc, char ** argv) {
 
     // rest random number gem
@@ -837,6 +859,9 @@ int main(int argc, char ** argv) {
         std::cout << "Error initializing SDL_ttf: " << TTF_GetError() << "\n";
     }
     TTF_Font * Sans = TTF_OpenFont("fonts/static/OpenSans-Medium.ttf", 24);
+
+    load_assets(ren);
+
     load_level_(ren, Sans);
 
     SDL_Event event;
@@ -858,7 +883,7 @@ int main(int argc, char ** argv) {
         if (load_level) {
             std::cout << "level loaded\n";
             // do stuff
-            tick_cards(ren);
+            tick_cards();
             // render_ui ATFTER evry thing else
             change_text(
                 ren,
