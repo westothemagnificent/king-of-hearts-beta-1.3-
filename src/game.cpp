@@ -280,7 +280,7 @@ void create_button(int x, int y, int w, int h, std::string tag) {
     buttons[size].tag = tag;
 }
 void handle_buttons(SDL_Event e) {
-    for (int i = 0; i < size(buttons); i++) {
+    for (size_t i = 0; i < buttons.size(); i++) {
         if (buttons[i].tag != "ui") {
             buttons[i].x += camx;
             buttons[i].y += camy;
@@ -324,14 +324,14 @@ void rest_orders() {
     all_sprites_in_order            = {};
     all_sprites                     = add_all_sprites();
     std::vector<int> layers_edited  = {};
-    for (int i = 0; i < size(all_sprites); i++) {
+    for (size_t i = 0; i < all_sprites.size(); i++) {
         layers_edited.push_back(all_sprites[i].layer);
         std::cout << all_sprites[i].layer;
     }
     vec_ex::print_vec(layers_edited);
     for (int i = layers_edited[vec_ex::find_gratest_in_vec(layers_edited)]; i > 0; i--) {
         std::cout << "loop\n";
-        for (int index = 0; index < size(all_sprites); index++) {
+        for (size_t index = 0; index < all_sprites.size(); index++) {
             if (layers_edited[index] == i) {
                 // std::terminate();
                 all_sprites_in_order.push_back(index);
@@ -345,7 +345,7 @@ void rest_orders() {
 void render_all_text(SDL_Renderer * ren) {
     std::vector<text> all_sprites = {};
     all_sprites                   = vec_ex::add_vec_to_vec(all_sprites, texts);
-    for (int i = 0; i < size(all_sprites); i++) {
+    for (size_t i = 0; i < all_sprites.size(); i++) {
         all_sprites[i].text_rec.x -= all_sprites[i].text_rec.w / 2;
         all_sprites[i].text_rec.y -= all_sprites[i].text_rec.h / 2;
         SDL_RenderCopy(ren, all_sprites[i].text_tex, NULL, &all_sprites[i].text_rec);
@@ -354,7 +354,7 @@ void render_all_text(SDL_Renderer * ren) {
 void render_all_sprites(SDL_Renderer * ren) {
     std::vector<sprite> all_sprites = {};
     all_sprites                     = add_all_sprites();
-    for (int i = 0; i < all_sprites_in_order.size(); i++) {
+    for (size_t i = 0; i < all_sprites_in_order.size(); i++) {
         if (all_sprites[all_sprites_in_order[i]].name == "player_hand") {
             render_all_text(ren);
         }
@@ -381,7 +381,7 @@ void make_cards(SDL_Renderer * ren, int cards_to_make) {
             "card",
             5
         ));
-        for (int i2 = 0; i2 < size(sp_card_indexs); i2++) {
+        for (size_t i2 = 0; i2 < sp_card_indexs.size(); i2++) {
             if (random(1, sp_card_indexs[i2].second) == 1) {
                 sp_card = 1;
                 r       = sp_card_indexs[i2].first;
@@ -501,7 +501,7 @@ void load_victory_ui(SDL_Renderer * ren, TTF_Font * Sans) {
         );
         create_button(650, 400, 50, 40, "ui");
         texts.push_back(create_text(ren, "treasure:", 12, { 0, 0, 0 }, Sans, 150, 500));
-        for (int i = 0; i < size(collected_items); i++) {
+        for (size_t i = 0; i < collected_items.size(); i++) {
             spritesnc.push_back(create_spite(
                 get_sprite_of_item(collected_items[i]),
                 80,
@@ -563,12 +563,14 @@ void tick_victroy_ui(SDL_Renderer * ren, TTF_Font * Sans) {
         if (texts[0].text_rec.y >= 50) {
             texts[0].text_rec.y -= round((abs(texts[0].text_rec.y - 50) / 10) + 0.5);
         }
-        for (int i = 2; i < size(spritesnc); i++) {
-            if (spritesnc[i].sprite_rec.y >= 200 + ((i - 2) * 100)) {
-                spritesnc[i].sprite_rec.y -=
-                    round((abs(spritesnc[i].sprite_rec.y - (200 + ((i - 2) * 100))) / 10) + 0.5);
-                texts[i - 1].text_rec.y -=
-                    round((abs(texts[i - 1].text_rec.y - (200 + ((i - 2) * 100))) / 10) + 0.5);
+        for (size_t i = 2; i < spritesnc.size(); i++) {
+            if (spritesnc[i].sprite_rec.y >= 200 + (((int)i - 2) * 100)) {
+                spritesnc[i].sprite_rec.y -= round(
+                    (abs(spritesnc[i].sprite_rec.y - (200 + (((int)i - 2) * 100))) / 10.0) + 0.5
+                );
+                texts[i - 1].text_rec.y -= round(
+                    (abs(texts[i - 1].text_rec.y - (200 + (((int)i - 2) * 100))) / 10.0) + 0.5
+                );
             }
         }
     }
@@ -631,7 +633,7 @@ void load_defeat_victory_ui(SDL_Renderer * ren, TTF_Font * Sans) {
     }
 }
 void tick_cards() {
-    for (int i = 0; i < size(cards_sprites); i++) {
+    for (size_t i = 0; i < cards_sprites.size(); i++) {
         if (cards_sprites[i].tag == "destoryed_card") {
             if (cards_sprites_des_frames[i] > 20) {
                 if (random(1, round((cards_sprites_des_frames[i] / 5) + 0.5)) == 1) {
