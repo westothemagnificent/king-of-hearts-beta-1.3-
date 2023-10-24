@@ -377,7 +377,7 @@ void make_cards(SDL_Renderer * ren, int cards_to_make) {
             250 + y * 86,
             52,
             86,
-            "card" + i,
+            "card" + std::to_string(i),
             "card",
             5
         ));
@@ -415,7 +415,7 @@ void make_hearts(SDL_Renderer * ren, int health) {
             460,
             52 - (27 * floor(health / 11)),
             52 - (27 * floor(health / 11)),
-            "heart" + i,
+            "heart" + std::to_string(i),
             "ui",
             2
         ));
@@ -508,7 +508,7 @@ void load_victory_ui(SDL_Renderer * ren, TTF_Font * Sans) {
                 500,
                 50,
                 80,
-                "item" + i,
+                "item" + std::to_string(i),
                 "ui",
                 2
             ));
