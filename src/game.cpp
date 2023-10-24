@@ -232,6 +232,7 @@ sprite create_spite(
     sprite_class.sprite_rec = rect;
     sprite_class.layer      = l;
     sprite_class.name       = name;
+    sprite_class.tag        = tag;
     sprite_class.asset      = asset;
 
     return sprite_class;
