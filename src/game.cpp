@@ -286,17 +286,13 @@ void handle_buttons(SDL_Event e) {
             buttons[i].x += camx;
             buttons[i].y += camy;
         }
-        if ((e.type == SDL_MOUSEBUTTONDOWN)
-            && (((buttons[i].x + buttons[i].w) > mouseX) && ((buttons[i].x - buttons[i].w) < mouseX)
-            )
-            && (((buttons[i].y + buttons[i].h) > mouseY) && ((buttons[i].y - buttons[i].h) < mouseY)
-            ))
+        if (e.type == SDL_MOUSEBUTTONDOWN
+            && (buttons[i].x + buttons[i].w > mouseX && buttons[i].x - buttons[i].w < mouseX)
+            && (buttons[i].y + buttons[i].h > mouseY && buttons[i].y - buttons[i].h < mouseY))
         {
             buttons[i].state = 1;
-        } else if (
-            (((buttons[i].x + buttons[i].w) > mouseX) && ((buttons[i].x - buttons[i].w) < mouseX))
-            && (((buttons[i].y + buttons[i].h) > mouseY)
-                && ((buttons[i].y - buttons[i].h) < mouseY)))
+        } else if ((buttons[i].x + buttons[i].w > mouseX && buttons[i].x - buttons[i].w < mouseX)
+             && (buttons[i].y + buttons[i].h > mouseY && buttons[i].y - buttons[i].h < mouseY))
         {
             buttons[i].state = 2;
         } else {
